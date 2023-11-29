@@ -1,16 +1,21 @@
 package com.iwomi.scheduling.listeners;
 
-import com.iwomi.scheduling.models.TimerModel;
-import com.iwomi.scheduling.services.SchedulerService;
+import com.iwomi.scheduling.jobs.DeleteUsersJob;
+import com.iwomi.scheduling.models.ScheduleInfoModel;
+import com.iwomi.scheduling.services.ISchedulerService;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.Trigger;
 import org.quartz.TriggerListener;
+import org.quartz.listeners.JobListenerSupport;
+import org.quartz.listeners.TriggerListenerSupport;
 
-public class SimpleTriggerListener implements TriggerListener {
-    private final SchedulerService schedulerService;
+import java.util.HashMap;
 
-    public SimpleTriggerListener(SchedulerService schedulerService) {
+public class SimpleTriggerListener extends TriggerListenerSupport {
+    private final ISchedulerService schedulerService;
+
+    public SimpleTriggerListener(ISchedulerService schedulerService) {
         this.schedulerService = schedulerService;
     }
 
@@ -19,57 +24,23 @@ public class SimpleTriggerListener implements TriggerListener {
         return SimpleTriggerListener.class.getSimpleName();
     }
 
-//    @Override
-//    public void triggerFired(Trigger trigger, JobExecutionContext jobExecutionContext) {
-//
-//    }
-//
-//    @Override
-//    public boolean vetoJobExecution(Trigger trigger, JobExecutionContext jobExecutionContext) {
-//        return false;
-//    }
-//
-//    @Override
-//    public void triggerMisfired(Trigger trigger) {
-//
-//    }
-//
-//    @Override
-//    public void triggerComplete(Trigger trigger, JobExecutionContext jobExecutionContext, Trigger.CompletedExecutionInstruction completedExecutionInstruction) {
-//
-//    }
-
     @Override
     public void triggerFired(Trigger trigger, JobExecutionContext context) {
-        final String timerId = trigger.getKey().getName();
+        final String scheduleId = trigger.getKey().getName();
 
         final JobDataMap jobDataMap = context.getJobDetail().getJobDataMap();
-        final TimerModel info = (TimerModel) jobDataMap.get(timerId);
+        final ScheduleInfoModel model = (ScheduleInfoModel) jobDataMap.get(DeleteUsersJob.class.getSimpleName());
+        final Integer count = model.getRemainingFireCount();
 
-        if (!info.isRunForever()) {
-            int remainingFireCount = info.getRemainingFireCount();
-            if (remainingFireCount == 0) {
-                return;
-            }
+//        if (count == 0) {
+//            return;
+//        } else {
+//            model.setRemainingFireCount(count - 1);
+//        }
 
-            info.setRemainingFireCount(remainingFireCount - 1);
-        }
+//            info.setRemainingFireCount(remainingFireCount - 1);
 
-        schedulerService.updateTimer(timerId, info);
+        schedulerService.updateTimer(scheduleId, model);
     }
 
-    @Override
-    public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {
-        return false;
-    }
-
-    @Override
-    public void triggerMisfired(Trigger trigger) {
-
-    }
-
-    @Override
-    public void triggerComplete(Trigger trigger, JobExecutionContext context, Trigger.CompletedExecutionInstruction triggerInstructionCode) {
-
-    }
 }

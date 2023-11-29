@@ -1,8 +1,9 @@
-package com.iwomi.scheduling.services;
+package com.iwomi.scheduling.services.impl;
 
 import com.iwomi.scheduling.core.utils.TimerUtils;
 import com.iwomi.scheduling.listeners.SimpleTriggerListener;
-import com.iwomi.scheduling.models.TimerModel;
+import com.iwomi.scheduling.models.ScheduleInfoModel;
+import com.iwomi.scheduling.services.ISchedulerService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -10,23 +11,23 @@ import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class SchedulerService {
+public class SchedulerService implements ISchedulerService {
     private final Scheduler scheduler;
 
     public SchedulerService(Scheduler scheduler) {
         this.scheduler = scheduler;
     }
 
-    public <T extends Job> void schedule(final Class<T> jobClass, final TimerModel model) {
+    @Override
+    public <T extends Job> void schedule(final Class<T> jobClass, final String cronString, final ScheduleInfoModel model) {
+
         final JobDetail jobDetail = TimerUtils.buildJobDetail(jobClass, model);
-        final Trigger trigger = TimerUtils.buildTrigger(jobClass, model);
+        final Trigger trigger = TimerUtils.buildTrigger(jobClass, cronString);
 
         try {
             scheduler.scheduleJob(jobDetail, trigger);
@@ -35,14 +36,15 @@ public class SchedulerService {
         }
     }
 
-    public List<TimerModel> getAllRunningTimers() {
+    @Override
+    public List<ScheduleInfoModel> getAllRunningTimers() {
         try {
             return scheduler.getJobKeys(GroupMatcher.anyGroup())
                     .stream()
                     .map(jobKey -> {
                         try {
                             final JobDetail jobDetail = scheduler.getJobDetail(jobKey);
-                            return (TimerModel) jobDetail.getJobDataMap().get(jobKey.getName());
+                            return (ScheduleInfoModel) jobDetail.getJobDataMap().get(jobKey.getName());
                         } catch (final SchedulerException e) {
                             log.error(e.getMessage(), e);
                             return null;
@@ -56,7 +58,8 @@ public class SchedulerService {
         }
     }
 
-    public TimerModel getRunningTimer(final String timerId) {
+    @Override
+    public ScheduleInfoModel getRunningTimer(final String timerId) {
         try {
             final JobDetail jobDetail = scheduler.getJobDetail(new JobKey(timerId));
             if (jobDetail == null) {
@@ -64,14 +67,15 @@ public class SchedulerService {
                 return null;
             }
 
-            return (TimerModel) jobDetail.getJobDataMap().get(timerId);
+            return (ScheduleInfoModel) jobDetail.getJobDataMap().get(timerId);
         } catch (final SchedulerException e) {
             log.error(e.getMessage(), e);
             return null;
         }
     }
 
-    public void updateTimer(final String timerId, final TimerModel info) {
+    @Override
+    public void updateTimer(final String timerId, final ScheduleInfoModel info) {
         try {
             final JobDetail jobDetail = scheduler.getJobDetail(new JobKey(timerId));
             if (jobDetail == null) {
@@ -87,6 +91,7 @@ public class SchedulerService {
         }
     }
 
+    @Override
     public Boolean deleteTimer(final String timerId) {
         try {
             return scheduler.deleteJob(new JobKey(timerId));
