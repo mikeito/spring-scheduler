@@ -12,8 +12,12 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ScheduleInfoModel implements Serializable {
+public class TimerModel implements Serializable {
     private int totalFireCount;
     private int remainingFireCount;
+    private boolean runForever;
+    private long repeatIntervalMs;
+    private long initialOffsetMs;
+    private String callbackData;
     private Map<String, String> data;
 }

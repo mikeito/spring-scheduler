@@ -1,8 +1,9 @@
-package com.iwomi.scheduling.services.impl;
+package com.iwomi.scheduling.services;
 
 import com.iwomi.scheduling.core.utils.TimerUtils;
+//import com.iwomi.scheduling.listeners.SimpleTriggerListener;
 import com.iwomi.scheduling.listeners.SimpleTriggerListener;
-import com.iwomi.scheduling.models.ScheduleInfoModel;
+import com.iwomi.scheduling.models.TimerModel;
 import com.iwomi.scheduling.services.ISchedulerService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -24,10 +25,11 @@ public class SchedulerService implements ISchedulerService {
     }
 
     @Override
-    public <T extends Job> void schedule(final Class<T> jobClass, final String cronString, final ScheduleInfoModel model) {
-
+    public <T extends Job> void schedule(final Class<T> jobClass, final TimerModel model) {
+        // build necessary data for scheduling.
+        // This is all needed for SimpleScheduleBuilder as per Quartz docs
         final JobDetail jobDetail = TimerUtils.buildJobDetail(jobClass, model);
-        final Trigger trigger = TimerUtils.buildTrigger(jobClass, cronString);
+        final Trigger trigger = TimerUtils.buildTrigger(jobClass, model);
 
         try {
             scheduler.scheduleJob(jobDetail, trigger);
@@ -36,15 +38,16 @@ public class SchedulerService implements ISchedulerService {
         }
     }
 
+    // This queries jobs and return all
     @Override
-    public List<ScheduleInfoModel> getAllRunningTimers() {
+    public List<TimerModel> getAllRunningTimers() {
         try {
             return scheduler.getJobKeys(GroupMatcher.anyGroup())
                     .stream()
                     .map(jobKey -> {
                         try {
                             final JobDetail jobDetail = scheduler.getJobDetail(jobKey);
-                            return (ScheduleInfoModel) jobDetail.getJobDataMap().get(jobKey.getName());
+                            return (TimerModel) jobDetail.getJobDataMap().get(jobKey.getName());
                         } catch (final SchedulerException e) {
                             log.error(e.getMessage(), e);
                             return null;
@@ -58,8 +61,9 @@ public class SchedulerService implements ISchedulerService {
         }
     }
 
+    // return specific running job or timer
     @Override
-    public ScheduleInfoModel getRunningTimer(final String timerId) {
+    public TimerModel getRunningTimer(final String timerId) {
         try {
             final JobDetail jobDetail = scheduler.getJobDetail(new JobKey(timerId));
             if (jobDetail == null) {
@@ -67,7 +71,7 @@ public class SchedulerService implements ISchedulerService {
                 return null;
             }
 
-            return (ScheduleInfoModel) jobDetail.getJobDataMap().get(timerId);
+            return (TimerModel) jobDetail.getJobDataMap().get(timerId);
         } catch (final SchedulerException e) {
             log.error(e.getMessage(), e);
             return null;
@@ -75,7 +79,7 @@ public class SchedulerService implements ISchedulerService {
     }
 
     @Override
-    public void updateTimer(final String timerId, final ScheduleInfoModel info) {
+    public void updateTimer(final String timerId, final TimerModel info) {
         try {
             final JobDetail jobDetail = scheduler.getJobDetail(new JobKey(timerId));
             if (jobDetail == null) {
@@ -101,6 +105,8 @@ public class SchedulerService implements ISchedulerService {
         }
     }
 
+    // This starts the scheduler and registers our listener
+    // with this service. See **SimpleTriggerListener class.
     @PostConstruct
     public void init() {
         try {

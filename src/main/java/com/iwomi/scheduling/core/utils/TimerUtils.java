@@ -1,17 +1,17 @@
 package com.iwomi.scheduling.core.utils;
 
-import com.iwomi.scheduling.models.ScheduleInfoModel;
-import lombok.NoArgsConstructor;
+import com.iwomi.scheduling.models.TimerModel;
 import org.quartz.*;
 
 import java.util.Date;
-import java.util.HashMap;
 
+// Helper class to build JobDetails and Triggers necessary for job
+// scheduling
 public class TimerUtils {
     public TimerUtils() {
     }
 
-    public static JobDetail buildJobDetail(final Class jobClass, final ScheduleInfoModel model) {
+    public static JobDetail buildJobDetail(final Class jobClass, final TimerModel model) {
         final JobDataMap jobDataMap = new JobDataMap();
         jobDataMap.put(jobClass.getSimpleName(), model);
 
@@ -22,14 +22,22 @@ public class TimerUtils {
                 .build();
     }
 
-    public static Trigger buildTrigger(final Class jobClass, final String cronString) {
-        CronScheduleBuilder cronSchedule = CronScheduleBuilder.cronSchedule(cronString);
-//        Date end = TriggerUtils.computeFireTimes(cronSchedule,)
+    public static Trigger buildTrigger(final Class jobClass, final TimerModel model) {
+        SimpleScheduleBuilder builder = SimpleScheduleBuilder.simpleSchedule().withIntervalInMilliseconds(model.getRepeatIntervalMs());
+
+        /// Check if the timer or job is to run forever
+        /// else check firedCount and deduct by 1
+        if (model.isRunForever()) {
+            builder = builder.repeatForever();
+        } else {
+            builder = builder.withRepeatCount(model.getTotalFireCount() - 1);
+        }
 
         return TriggerBuilder
                 .newTrigger()
                 .withIdentity(jobClass.getSimpleName())
-                .withSchedule(cronSchedule)
+                .withSchedule(builder)
+                .startAt(new Date(System.currentTimeMillis() + model.getInitialOffsetMs()))
                 .build();
     }
 }
